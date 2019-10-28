@@ -39,6 +39,9 @@ mutual
  (V x)    ⟫= f = f x
  (R rq k) ⟫= f = R rq ((·⟫= f) ∘ k)
 
+_⟫_ : ∀ {a b} → Eff a → Eff b → Eff b
+m1 ⟫ m2 = m1 ⟫= (λ _ → m2)
+
 liftM2 : ∀ {a} → (a → a → a) → Eff a → Eff a → Eff a
 liftM2 op m1 m2 =
   m1 ⟫= λ x → m2 ⟫= λ y → return (op x y)
@@ -60,13 +63,39 @@ monadLawAssoc : ∀ {a b c} →
 monadLawAssoc (V x) f g = refl
 monadLawAssoc (R x k) f g = {!    !}
 
-  --- handlers
+--- State
 
 hdState : ∀ {a} → St → Eff a → Eff (a × St)
 hdState st (V x)           = V (x , st)
 hdState st (R Get k)       = hdState st (k st)
 hdState st (R (Put st') k) = hdState st' (k tt)
 hdState st (R rq k)        = R rq (λ x → hdState st (k x))
+
+get : Eff St
+get = R Get return
+
+put : St → Eff ⊤
+put s = R (Put s) return
+
+{- Basic state laws
+
+    put s1 >> put s2  =  put s2
+    put s >> get   = put s >> return s
+    get >>= put = return ()
+    get >>= λ s1 → get >>= λ s2 → f s1 s2 =
+       get >>= λ s → f s s
+-}
+
+putPut : ∀ {s s1 s2} →
+     hdState s (put s1 ⟫ put s2) ≡ hdState s (put s2)
+putPut = refl
+
+putGet : ∀ {s} → hdState s (put s ⟫ get) ≡ hdState s (put s ⟫ return s)
+putGet = refl
+
+--- getPut, and getGet
+
+-- Non-Determinism
 
 hdNondet : ∀ {a} → Eff a → Eff (List a)
 hdNondet (V x)      = V (x ∷ [])
@@ -77,7 +106,8 @@ hdNondet (R rq k)   = R rq (λ x → hdNondet (k x))
 _∥_ : ∀ {a} → Eff a → Eff a → Eff a
 m1 ∥ m2 = R Coin (λ b → if b then m1 else m2)
 
-{-
+{- Basic laws about non-determinism monad
+
    m1 ∥ (m2 ∥ m3) = (m1 ∥ m2) ∥ m3
    m1 ∥ Zero = Zero = m1 ∥ Zero
 
