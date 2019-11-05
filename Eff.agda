@@ -9,6 +9,9 @@ open import Data.Nat using (ℕ)
 open import Data.List
 open import Relation.Binary.PropositionalEquality
 
+postulate
+  extensionality : ∀ {a b} → Extensionality a b
+
 data Free (a : Set) : Set₁ where
   Return : a → Free a
   _>>=_  : ∀ {b} → Free b → (b → Free a) → Free a
@@ -55,7 +58,7 @@ liftM2 op m1 m2 =
 
 monadLawRUnit : ∀ {a} (m : Eff a) → m ⟫= return ≡ m
 monadLawRUnit (V x) = refl
-monadLawRUnit (R rq k) = {!   !}
+monadLawRUnit (R rq k) = cong (R rq) (extensionality (λ x → monadLawRUnit (k x)))
 
 monadLawAssoc : ∀ {a b c} →
    (m : Eff a) → (f : a → Eff b) → (g : b → Eff c) →
