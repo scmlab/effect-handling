@@ -64,8 +64,7 @@ monadLawAssoc : ∀ {a b c} →
    (m : Eff a) → (f : a → Eff b) → (g : b → Eff c) →
    (m ⟫= f) ⟫= g  ≡  m ⟫= λ x → f x ⟫= g
 monadLawAssoc (V x) f g = refl
-monadLawAssoc (R x k) f g = {!    !}
-
+monadLawAssoc (R x k) f g = cong (R x) (extensionality (λ x₁ → monadLawAssoc (k x₁) _ _))
 --- State
 
 hdState : ∀ {a} → St → Eff a → Eff (a × St)
