@@ -99,14 +99,16 @@ putGet = refl
 getPut : ∀ {s} → hdState s (get ⟫= put) ≡ hdState s (return _)
 getPut = refl
 
---- getPut, and getGet
+getGet : ∀ {a} {s} {f : St → St → Eff a}
+  → hdState s (get ⟫= λ s₁ → get ⟫= λ s₂ → f s₁ s₂) ≡ hdState s (get ⟫= λ s → f s s)
+getGet = refl
 
 -- Non-Determinism
 
 hdNondet : ∀ {a} → Eff a → Eff (List a)
 hdNondet (V x)      = V (x ∷ [])
 hdNondet (R Zero _) = V []
-hdNondet (R Coin k) = liftM2 (_++_) (hdNondet (k false)) (hdNondet (k true))
+hdNondet (R Coin k) = liftM2 (_++_) (hdNondet (k true)) (hdNondet (k false))
 hdNondet (R rq k)   = R rq (λ x → hdNondet (k x))
 
 _∥_ : ∀ {a} → Eff a → Eff a → Eff a
@@ -119,3 +121,7 @@ m1 ∥ m2 = R Coin (λ b → if b then m1 else m2)
 
    (m1 ∥ m2) >>= f = (m1 ⟫= f) ∥ (m2 ⟫= f)
 -}
+
+liftHdNondet : ∀ {a} → (m1 m2 : Eff a)
+  → hdNondet (m1 ∥ m2) ≡ liftM2 (_++_) (hdNondet m1) (hdNondet m2)
+liftHdNondet m1 m2 = refl
