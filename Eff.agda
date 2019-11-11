@@ -49,7 +49,7 @@ liftM2 : ∀ {a} → (a → a → a) → Eff a → Eff a → Eff a
 liftM2 op m1 m2 =
   m1 ⟫= λ x → m2 ⟫= λ y → return (op x y)
 
-{-
+{-]
   Monad Laws:
      return x >>= f = f x
      m >>= return   = m
@@ -65,6 +65,43 @@ monadLawAssoc : ∀ {a b c} →
    (m ⟫= f) ⟫= g  ≡  m ⟫= λ x → f x ⟫= g
 monadLawAssoc (V x) f g = refl
 monadLawAssoc (R x k) f g = cong (R x) (extensionality (λ x₁ → monadLawAssoc (k x₁) _ _))
+
+open ≡-Reasoning
+
+liftM2Assoc : ∀ {a} (op : a → a → a)
+  → (∀ {x y z : a}→ op (op x y) z ≡ op x (op y z))
+  → ∀ (m1 m2 m3 : Eff a)
+  → liftM2 op (liftM2 op m1 m2) m3 ≡ liftM2 op m1 (liftM2 op m2 m3)
+liftM2Assoc op pf m1 m2 m3 =
+  begin
+    liftM2 op (liftM2 op m1 m2) m3
+  ≡⟨ refl ⟩
+    ((m1 ⟫= λ x → m2 ⟫= λ y → return (op x y)) ⟫=
+      λ x' → m3 ⟫= λ z → return (op x' z))
+  ≡⟨ monadLawAssoc m1 _ _ ⟩
+    (m1 ⟫= λ x → (m2 ⟫= λ y → return (op x y)) ⟫=
+      λ x' → m3 ⟫= λ z → return (op x' z))
+  ≡⟨ cong (λ f → m1 ⟫= f) (extensionality (λ x → monadLawAssoc m2 _ _)) ⟩
+    (m1 ⟫= λ x → m2 ⟫= λ y → m3 ⟫= λ z → return (op (op x y) z))
+  ≡⟨ cong (λ f → m1 ⟫= f)
+      (extensionality (λ x → cong (λ f → m2 ⟫= f)
+        (extensionality (λ y → cong ((λ f → m3 ⟫= f))
+          (extensionality (λ z → cong V pf)))))) ⟩
+    (m1 ⟫= λ x → m2 ⟫= λ y → m3 ⟫= λ z → return (op x (op y z)))
+  ≡⟨ cong (λ f → m1 ⟫= f) (extensionality
+      (λ x → cong (λ f → m2 ⟫= f)
+        (extensionality (λ y → sym (monadLawAssoc m3 _ _))))) ⟩
+    (m1 ⟫=
+      λ x → (m2 ⟫= λ y → (m3 ⟫= λ z → return (op y z)) ⟫=
+        λ y' → return (op x y')))
+  ≡⟨ cong (λ f → m1 ⟫= f) (extensionality (λ x → sym (monadLawAssoc m2 _ _))) ⟩
+    (m1 ⟫=
+      λ x → (m2 ⟫= λ y → m3 ⟫= λ z → return (op y z)) ⟫=
+        λ y' → return (op x y'))
+  ≡⟨ refl ⟩
+    liftM2 op m1 (liftM2 op m2 m3)
+  ∎
+
 
 --- State
 
@@ -122,6 +159,19 @@ m1 ∥ m2 = R Coin (λ b → if b then m1 else m2)
    (m1 ∥ m2) >>= f = (m1 ⟫= f) ∥ (m2 ⟫= f)
 -}
 
+_∥'_ : ∀ {a} → Eff (List a) → Eff (List a) → Eff (List a)
+hm1 ∥' hm2 = liftM2 (_++_) hm1 hm2
+
 liftHdNondet : ∀ {a} → (m1 m2 : Eff a)
-  → hdNondet (m1 ∥ m2) ≡ liftM2 (_++_) (hdNondet m1) (hdNondet m2)
+  → hdNondet (m1 ∥ m2) ≡ (hdNondet m1) ∥' (hdNondet m2)
 liftHdNondet m1 m2 = refl
+
+
+
+liftHdNondetAssoc : ∀ {a} → (m1 m2 m3 : Eff a)
+  → ((hdNondet m1 ∥' hdNondet m2) ∥' hdNondet m3) ≡ (hdNondet m1 ∥' (hdNondet m2 ∥' hdNondet m3))
+liftHdNondetAssoc {a} m1 m2 m3 = {!   !}
+
+-- hdNondetAssoc : ∀ {a} → (m1 m2 m3 : Eff a)
+--   → hdNondet ((m1 ∥ m2) ∥ m3) ≡ hdNondet (m1 ∥ (m2 ∥ m3))
+-- hdNondetAssoc m1 m2 m3 = {!   !}
