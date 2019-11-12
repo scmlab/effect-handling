@@ -7,6 +7,7 @@ open import Data.Product
 open import Function using (_∘_)
 open import Data.Nat using (ℕ)
 open import Data.List
+open import Data.List.Properties
 open import Relation.Binary.PropositionalEquality
 
 postulate
@@ -69,7 +70,7 @@ monadLawAssoc (R x k) f g = cong (R x) (extensionality (λ x₁ → monadLawAsso
 open ≡-Reasoning
 
 liftM2Assoc : ∀ {a} (op : a → a → a)
-  → (∀ {x y z : a}→ op (op x y) z ≡ op x (op y z))
+  → (∀ (x y z : a) → op (op x y) z ≡ op x (op y z))
   → ∀ (m1 m2 m3 : Eff a)
   → liftM2 op (liftM2 op m1 m2) m3 ≡ liftM2 op m1 (liftM2 op m2 m3)
 liftM2Assoc op pf m1 m2 m3 =
@@ -86,7 +87,7 @@ liftM2Assoc op pf m1 m2 m3 =
   ≡⟨ cong (λ f → m1 ⟫= f)
       (extensionality (λ x → cong (λ f → m2 ⟫= f)
         (extensionality (λ y → cong ((λ f → m3 ⟫= f))
-          (extensionality (λ z → cong V pf)))))) ⟩
+          (extensionality (λ z → cong V (pf _ _ _))))))) ⟩
     (m1 ⟫= λ x → m2 ⟫= λ y → m3 ⟫= λ z → return (op x (op y z)))
   ≡⟨ cong (λ f → m1 ⟫= f) (extensionality
       (λ x → cong (λ f → m2 ⟫= f)
@@ -141,16 +142,20 @@ getGet : ∀ {a} {s} {f : St → St → Eff a}
 getGet = refl
 
 -- Non-Determinism
+_++'_ : ∀ {a} → Eff (List a) → Eff (List a) → Eff (List a)
+hm1 ++' hm2 = liftM2 (_++_) hm1 hm2
 
 hdNondet : ∀ {a} → Eff a → Eff (List a)
 hdNondet (V x)      = V (x ∷ [])
 hdNondet (R Zero _) = V []
-hdNondet (R Coin k) = liftM2 (_++_) (hdNondet (k true)) (hdNondet (k false))
+hdNondet (R Coin k) = (hdNondet (k true)) ++' (hdNondet (k false))
 hdNondet (R rq k)   = R rq (λ x → hdNondet (k x))
 
 _∥_ : ∀ {a} → Eff a → Eff a → Eff a
 m1 ∥ m2 = R Coin (λ b → if b then m1 else m2)
 
+∅ : ∀ {a} → Eff a
+∅ = R Zero _
 {- Basic laws about non-determinism monad
 
    m1 ∥ (m2 ∥ m3) = (m1 ∥ m2) ∥ m3
@@ -159,19 +164,25 @@ m1 ∥ m2 = R Coin (λ b → if b then m1 else m2)
    (m1 ∥ m2) >>= f = (m1 ⟫= f) ∥ (m2 ⟫= f)
 -}
 
-_∥'_ : ∀ {a} → Eff (List a) → Eff (List a) → Eff (List a)
-hm1 ∥' hm2 = liftM2 (_++_) hm1 hm2
-
 liftHdNondet : ∀ {a} → (m1 m2 : Eff a)
-  → hdNondet (m1 ∥ m2) ≡ (hdNondet m1) ∥' (hdNondet m2)
+  → hdNondet (m1 ∥ m2) ≡ (hdNondet m1) ++' (hdNondet m2)
 liftHdNondet m1 m2 = refl
 
-
-
 liftHdNondetAssoc : ∀ {a} → (m1 m2 m3 : Eff a)
-  → ((hdNondet m1 ∥' hdNondet m2) ∥' hdNondet m3) ≡ (hdNondet m1 ∥' (hdNondet m2 ∥' hdNondet m3))
-liftHdNondetAssoc {a} m1 m2 m3 = {!   !}
+  → ((hdNondet m1 ++' hdNondet m2) ++' hdNondet m3) ≡ (hdNondet m1 ++' (hdNondet m2 ++' hdNondet m3))
+liftHdNondetAssoc {a} m1 m2 m3 = liftM2Assoc _++_ ++-assoc (hdNondet m1) (hdNondet m2) (hdNondet m3)
 
--- hdNondetAssoc : ∀ {a} → (m1 m2 m3 : Eff a)
---   → hdNondet ((m1 ∥ m2) ∥ m3) ≡ hdNondet (m1 ∥ (m2 ∥ m3))
--- hdNondetAssoc m1 m2 m3 = {!   !}
+hdNondetAssoc : ∀ {a} → (m1 m2 m3 : Eff a)
+  → hdNondet ((m1 ∥ m2) ∥ m3) ≡ hdNondet (m1 ∥ (m2 ∥ m3))
+hdNondetAssoc m1 m2 m3 = liftHdNondetAssoc m1 m2 m3
+
+hdNondetZero : ∀ {a} → (k : a → Eff a) → hdNondet (∅ ⟫= k) ≡ hdNondet ∅
+hdNondetZero k = refl
+
+∥-distrib : ∀ {a} → (m1 m2 : Eff a) → (k : a → Eff a)
+  → (m1 ∥ m2) ⟫= k ≡ R Coin (λ b → (if b then m1 else m2) ⟫= k)
+∥-distrib m1 m2 k = refl
+
+hdNondetDistrib : ∀ {a} → (m1 m2 : Eff a) → (k : a → Eff a)
+  → hdNondet ((m1 ∥ m2) ⟫= k) ≡ hdNondet ((m1 ⟫= k) ∥ (m2 ⟫= k))
+hdNondetDistrib m1 m2 k = refl
