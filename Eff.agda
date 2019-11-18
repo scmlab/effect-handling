@@ -155,7 +155,7 @@ _∥_ : ∀ {a} → Eff a → Eff a → Eff a
 m1 ∥ m2 = R Coin (λ b → if b then m1 else m2)
 
 ∅ : ∀ {a} → Eff a
-∅ = R Zero _
+∅ = R Zero (λ ())
 {- Basic laws about non-determinism monad
 
    m1 ∥ (m2 ∥ m3) = (m1 ∥ m2) ∥ m3
