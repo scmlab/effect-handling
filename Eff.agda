@@ -186,3 +186,19 @@ hdNondetZero k = refl
 hdNondetDistrib : ∀ {a} → (m1 m2 : Eff a) → (k : a → Eff a)
   → hdNondet ((m1 ∥ m2) ⟫= k) ≡ hdNondet ((m1 ⟫= k) ∥ (m2 ⟫= k))
 hdNondetDistrib m1 m2 k = refl
+
+{- foldEff
+
+-}
+
+foldEff : ∀ {a : Set} {c : Set₁} → (a → c)
+  → (∀ {b} → Req b → (b → c) → c)
+  → Eff a
+  → c
+foldEff f g (V x) = f x
+foldEff f g (R rq k) = g rq (foldEff f g ∘ k)
+
+bindEqFold : ∀ {a b} → (f : a → Eff b) → (m : Eff a)
+  → (m ⟫= f) ≡ foldEff f R m
+bindEqFold f (V x) = refl
+bindEqFold f (R rq k) = cong (R rq) (extensionality (λ x → bindEqFold f (k x)))
