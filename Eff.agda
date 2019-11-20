@@ -202,3 +202,21 @@ bindEqFold : ∀ {a b} → (f : a → Eff b) → (m : Eff a)
   → (m ⟫= f) ≡ foldEff f R m
 bindEqFold f (V x) = refl
 bindEqFold f (R rq k) = cong (R rq) (extensionality (λ x → bindEqFold f (k x)))
+
+foldEff-∘ : ∀ {a b : Set} {c : Set₁} → (f₁ : b → c) → (f₂ : a → Eff b)
+  → (g : ∀ {r} → Req r → (r → c) → c)
+  → (m : Eff a)
+  → ((foldEff f₁ g) ∘ (foldEff f₂ R)) m ≡ foldEff (foldEff f₁ g ∘ f₂) g m
+foldEff-∘ f₁ f₂ g (V x) = refl
+foldEff-∘ f₁ f₂ g (R rq k) =
+  begin
+    ((foldEff f₁ g) ∘ (foldEff f₂ R)) (R rq k)
+  ≡⟨ refl ⟩
+    foldEff f₁ g (R rq (foldEff f₂ R ∘ k))
+  ≡⟨ refl ⟩
+    g rq ((foldEff f₁ g ∘ foldEff f₂ R) ∘ k)
+  ≡⟨ cong (g rq) (extensionality (λ x → foldEff-∘ f₁ f₂ g (k x))) ⟩
+    g rq (foldEff (foldEff f₁ g ∘ f₂) g ∘ k)
+  ≡⟨ refl ⟩
+    foldEff (foldEff f₁ g ∘ f₂) g (R rq k)
+  ∎
