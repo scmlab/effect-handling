@@ -252,3 +252,16 @@ module Hd where
     hdR : ∀ {r : Set}
       → (rq : Req r) → (k : r → Eff a)
       → hd (R rq k) ≡ R rq (hd ∘ k)
+
+  hdEqFold : (m : Eff a)
+    → NonDetOnly m
+    → hd m ≡ foldEff (λ x → hd (V x)) R m
+  hdEqFold (V x) p = refl
+  hdEqFold (R rq k) (R rq k p1 p2) =
+    begin
+      hd (R rq k)
+    ≡⟨ hdR rq k ⟩
+      R rq (hd ∘ k)
+    ≡⟨ cong (R rq) (extensionality (λ x → hdEqFold (k x) (p2 x))) ⟩
+      foldEff (λ x → hd (V x)) R (R rq k)
+    ∎
