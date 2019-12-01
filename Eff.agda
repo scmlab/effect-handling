@@ -279,3 +279,19 @@ module Hd where
     ≡⟨ cong (R rq) (extensionality (λ x → hdBind (k x) f (p2 x))) ⟩
       foldEff (hd ∘ f) R (R rq k)
     ∎
+
+  hdExt : {c : Set} (m : Eff c)
+    → (f1 f2 : c → Eff a)
+    → NonDetOnly m
+    → hd ∘ f1 ≡ hd ∘ f2
+    → hd (m ⟫= f1) ≡ hd (m ⟫= f2)
+  hdExt m f1 f2 pm pf =
+    begin
+      hd (m ⟫= f1)
+    ≡⟨ hdBind m f1 pm ⟩
+      foldEff (hd ∘ f1) R m
+    ≡⟨ cong-app (cong₂ foldEff pf refl) m ⟩
+      foldEff (hd ∘ f2) R m
+    ≡⟨ sym (hdBind m f2 pm) ⟩
+      hd (m ⟫= f2)
+    ∎
