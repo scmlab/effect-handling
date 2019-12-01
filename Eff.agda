@@ -265,3 +265,17 @@ module Hd where
     ≡⟨ cong (R rq) (extensionality (λ x → hdEqFold (k x) (p2 x))) ⟩
       foldEff (λ x → hd (V x)) R (R rq k)
     ∎
+
+  hdBind : {c : Set} (m : Eff c)
+    → (f : c → Eff a)
+    → NonDetOnly m
+    → hd (m ⟫= f) ≡ foldEff (hd ∘ f) R m
+  hdBind (V x) f p = refl
+  hdBind (R rq k) f (R rq k p1 p2) =
+    begin
+      hd (R rq k ⟫= f)
+    ≡⟨ hdR rq (λ x → ·⟫= f (k x)) ⟩
+      R rq (hd ∘ (·⟫= f ∘ k))
+    ≡⟨ cong (R rq) (extensionality (λ x → hdBind (k x) f (p2 x))) ⟩
+      foldEff (hd ∘ f) R (R rq k)
+    ∎
