@@ -4,6 +4,7 @@ open import Data.Empty
 open import Data.Unit
 open import Data.Bool
 open import Data.Product
+open import Data.Sum
 open import Function using (_∘_)
 open import Data.Nat using (ℕ)
 open import Data.List
@@ -26,12 +27,27 @@ data Req : Set → Set where
   Zero : Req ⊥
   Coin : Req Bool
 
+data isState : {a : Set} → Req a → Set where
+  Get : isState Get
+  Put : (s : St) → isState (Put s)
+
+data isNondet : {a : Set} → Req a → Set where
+  Zero : isNondet Zero
+  Coin : isNondet Coin
+
 data Eff (a : Set) : Set₁ where
   V : a → Eff a
   R : ∀ {b} → Req b → (b → Eff a) → Eff a
 
 return : ∀ {a} → a → Eff a
 return = V
+
+_≈_ : {a b : Set} → Req a → Req b → Set
+Get ≈ Get = ⊤
+(Put _) ≈ (Put _) = ⊤
+Zero ≈ Zero = ⊤
+Coin ≈ Coin = ⊤
+_ ≈ _ = ⊥
 
 mutual
 
@@ -220,3 +236,19 @@ foldEff-∘ f₁ f₂ g (R rq k) =
   ≡⟨ refl ⟩
     foldEff (foldEff f₁ g ∘ f₂) g (R rq k)
   ∎
+
+module Hd where
+  data NonDetOnly {a : Set} :  Eff a → Set₁ where
+    V : ∀ (x : a) → NonDetOnly (V x)
+    R : ∀ {b r : Set}
+      → (rq : Req r) → (k : r → Eff a)
+      → ((rq ≈ Coin) ⊎ (rq ≈ Zero))
+      → (∀ y → NonDetOnly (k y))
+      → NonDetOnly (R rq k)
+
+  postulate
+    a b : Set
+    hd : Eff a → Eff b
+    hdR : ∀ {r : Set}
+      → (rq : Req r) → (k : r → Eff a)
+      → hd (R rq k) ≡ R rq (hd ∘ k)
