@@ -4,7 +4,6 @@ open import Data.Empty
 open import Data.Unit
 open import Data.Bool
 open import Data.Product
-open import Data.Sum
 open import Function using (_∘_)
 open import Data.Nat using (ℕ)
 open import Data.List
@@ -236,62 +235,3 @@ foldEff-∘ f₁ f₂ g (R rq k) =
   ≡⟨ refl ⟩
     foldEff (foldEff f₁ g ∘ f₂) g (R rq k)
   ∎
-
-module Hd where
-  data NonDetOnly {a : Set} :  Eff a → Set₁ where
-    V : ∀ (x : a) → NonDetOnly (V x)
-    R : ∀ {b r : Set}
-      → (rq : Req r) → (k : r → Eff a)
-      → ((rq ≈ Coin) ⊎ (rq ≈ Zero))
-      → (∀ y → NonDetOnly (k y))
-      → NonDetOnly (R rq k)
-
-  postulate
-    a b : Set
-    hd : Eff a → Eff b
-    hdR : ∀ {r : Set}
-      → (rq : Req r) → (k : r → Eff a)
-      → hd (R rq k) ≡ R rq (hd ∘ k)
-
-  hdEqFold : (m : Eff a)
-    → NonDetOnly m
-    → hd m ≡ foldEff (λ x → hd (V x)) R m
-  hdEqFold (V x) p = refl
-  hdEqFold (R rq k) (R rq k p1 p2) =
-    begin
-      hd (R rq k)
-    ≡⟨ hdR rq k ⟩
-      R rq (hd ∘ k)
-    ≡⟨ cong (R rq) (extensionality (λ x → hdEqFold (k x) (p2 x))) ⟩
-      foldEff (λ x → hd (V x)) R (R rq k)
-    ∎
-
-  hdBind : {c : Set} (m : Eff c)
-    → (f : c → Eff a)
-    → NonDetOnly m
-    → hd (m ⟫= f) ≡ foldEff (hd ∘ f) R m
-  hdBind (V x) f p = refl
-  hdBind (R rq k) f (R rq k p1 p2) =
-    begin
-      hd (R rq k ⟫= f)
-    ≡⟨ hdR rq (λ x → ·⟫= f (k x)) ⟩
-      R rq (hd ∘ (·⟫= f ∘ k))
-    ≡⟨ cong (R rq) (extensionality (λ x → hdBind (k x) f (p2 x))) ⟩
-      foldEff (hd ∘ f) R (R rq k)
-    ∎
-
-  hdExt : {c : Set} (m : Eff c)
-    → (f1 f2 : c → Eff a)
-    → NonDetOnly m
-    → hd ∘ f1 ≡ hd ∘ f2
-    → hd (m ⟫= f1) ≡ hd (m ⟫= f2)
-  hdExt m f1 f2 pm pf =
-    begin
-      hd (m ⟫= f1)
-    ≡⟨ hdBind m f1 pm ⟩
-      foldEff (hd ∘ f1) R m
-    ≡⟨ cong-app (cong₂ foldEff pf refl) m ⟩
-      foldEff (hd ∘ f2) R m
-    ≡⟨ sym (hdBind m f2 pm) ⟩
-      hd (m ⟫= f2)
-    ∎
